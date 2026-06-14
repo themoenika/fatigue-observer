@@ -21,23 +21,30 @@
   --text:#1C1C1E;--text2:#3C3C43;--muted:#8E8E93;
   --r:12px;--rlg:16px;--shadow:0 2px 12px rgba(0,0,0,0.07);
   --font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --topbar-bg:rgba(242,242,247,0.92);--tabs-bg:rgba(255,255,255,0.95);
 }
-html,body{height:100%;background:var(--bg);font-family:var(--font);-webkit-font-smoothing:antialiased;}
-#app{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;max-width:480px;margin:0 auto;background:var(--bg);}
+body.dark{
+  --bg:#1C1C1E;--surface:#2C2C2E;--surface2:#3A3A3C;--border:rgba(255,255,255,0.1);
+  --text:#FFFFFF;--text2:#EBEBF5;--muted:#8E8E93;
+  --shadow:0 2px 12px rgba(0,0,0,0.3);
+  --topbar-bg:rgba(28,28,30,0.92);--tabs-bg:rgba(44,44,46,0.97);
+}
+html,body{height:100%;height:-webkit-fill-available;background:var(--bg);font-family:var(--font);-webkit-font-smoothing:antialiased;}
+#app{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;min-height:-webkit-fill-available;max-width:480px;margin:0 auto;background:var(--bg);}
 
 /* Top bar */
-.topbar{position:sticky;top:0;z-index:20;height:52px;display:flex;align-items:center;
-  justify-content:center;background:rgba(242,242,247,0.92);backdrop-filter:blur(16px);
+.topbar{position:sticky;top:0;z-index:20;height:52px;height:calc(52px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top);display:flex;align-items:center;
+  justify-content:center;background:var(--topbar-bg);backdrop-filter:blur(16px);
   -webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border);flex-shrink:0;}
 .topbar h2{font-size:17px;font-weight:600;color:var(--text);}
 
 /* Content area */
-.screen{flex:1;overflow-y:auto;padding-bottom:90px;display:none;}
+.screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(90px + env(safe-area-inset-bottom));display:none;}
 .screen.active{display:block;}
 
 /* Tab bar */
 .tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;
-  height:72px;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);
+  height:72px;background:var(--tabs-bg);backdrop-filter:blur(20px);
   -webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);
   display:flex;align-items:flex-start;padding-top:8px;z-index:20;
   padding-bottom:env(safe-area-inset-bottom);}
@@ -248,7 +255,7 @@ input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;bor
 <body>
 <div id="app">
   <!-- Top bar -->
-  <div class="topbar"><h2 id="page-title">Fatigue Observer</h2></div>
+  <div class="topbar"><h2 id="page-title">Fatigue Observer</h2><button id="dark-toggle" onclick="toggleDark()" style="position:absolute;right:16px;border:none;background:none;font-size:20px;cursor:pointer;padding:4px;-webkit-tap-highlight-color:transparent;">🌙</button></div>
 
   <!-- HOME -->
   <div class="screen active" id="screen-home">
@@ -1005,6 +1012,39 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('/sw.js').catch(()=>{});
   });
 }
+
+
+// ── Dark mode ─────────────────────────────────────────────────────────────────
+function isDarkHour(){ const h=new Date().getHours(); return h>=19||h<7; }
+
+function applyDark(on){
+  document.body.classList.toggle('dark',on);
+  const btn=document.getElementById('dark-toggle');
+  if(btn) btn.textContent=on?'☀️':'🌙';
+  save('fo_dark', on ? 'manual_on' : isDarkHour() ? 'auto' : 'manual_off');
+}
+
+function toggleDark(){
+  const isDark=document.body.classList.contains('dark');
+  applyDark(!isDark);
+  // If manually toggled, mark as manual so auto doesn't override
+  save('fo_dark', !isDark ? 'manual_on' : 'manual_off');
+}
+
+function initDark(){
+  const stored=load('fo_dark','auto');
+  if(stored==='manual_on') applyDark(true);
+  else if(stored==='manual_off') applyDark(false);
+  else applyDark(isDarkHour()); // auto based on time
+}
+
+// Re-check every minute in case time crosses 7pm/7am threshold
+setInterval(()=>{
+  const stored=load('fo_dark','auto');
+  if(stored==='auto') applyDark(isDarkHour());
+},60000);
+
+initDark();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 renderHome();
